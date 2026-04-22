@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "tamer-worker": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "/home/fredc/.tamer/tamer-cli-reboot/src/mcp-server.ts"
+      ],
+      "env": {
+        "TAMER_REPLY_FILE": "/home/fredc/.tamer/reply-d6ecf223-31a6-4959-80b0-22c59ae8e98c.jsonl",
+        "TAMER_SKILL_IPC_DIR": "/home/fredc/.tamer/skill-ipc-d6ecf223-31a6-4959-80b0-22c59ae8e98c"
+      },
+      "trust": true
+    }
+  },
+  "tools": {
+    "sandbox": false
+  }
+}

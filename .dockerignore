@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.tamer
+.gemini
+.claude
+.agents
+.cursorignore
+.cursorrules
+.geminiignore
+.opencode
+.windsurfignore
+.windsurfrules

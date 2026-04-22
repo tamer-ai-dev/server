@@ -1,0 +1,101 @@
+# Claude Code — Approval prompt detection rules
+# Each rule: name, match (regex), extract template
+# First match wins (rules evaluated in order)
+# Template vars: $1, $2... from regex capture groups
+# Special: $first_word = first word of $1
+
+rules:
+  # Old Claude Code box format: "? Shell <cmd> [current working..."
+  - name: shell-question
+    match: '\?\s*Shell\s+(.{1,200})'
+    extract:
+      tool: Bash
+      subTool: $first_word
+      shortCmd: 'Bash($1)'
+    clean_capture:
+      1: strip_cwd
+
+  # Old format: "? Edit <file>: ..."
+  - name: edit-question
+    match: '\?\s*Edit\s+(\S+)'
+    extract:
+      tool: Edit
+      subTool: $1
+      shortCmd: 'Edit($1)'
+    clean_capture:
+      1: strip_trailing_colon
+
+  # New format: "Do you want to make this edit to <file>?"
+  - name: edit-to-file
+    match: 'edit\s+to\s+(\S+\.[\w]+)\s*\?'
+    extract:
+      tool: Edit
+      subTool: $1
+      shortCmd: 'Edit($1)'
+
+  # "Edit file\n <path>"
+  - name: edit-file-newline
+    match: 'Edit\s+file\s*\n\s*(\S+)'
+    extract:
+      tool: Edit
+      subTool: $1
+      shortCmd: 'Edit($1)'
+
+  # "Bash command\n  <actual-cmd>" (skip descriptions)
+  - name: bash-command-block
+    match: 'Bash\s+command\s*\n\s*(\S.{0,200})'
+    extract:
+      tool: Bash
+      subTool: $first_word
+      shortCmd: 'Bash($1)'
+    skip_if_capture_matches:
+      1: '^(Run |Check |Bump |List |Show )'
+
+  # Fallback scan for command after "Bash command" block
+  - name: bash-command-block-scan
+    match: 'Bash\s+command\s*\n([\s\S]{1,500}?)(?:\n\s*(?:Do you|Run |Check |Bump ))'
+    extract:
+      tool: Bash
+      subTool: $first_word
+      shortCmd: 'Bash($1)'
+    capture_mode: first_command_line
+
+  # "Allow execution of: 'cmd'?"
+  - name: allow-execution
+    match: "Allow\\s+execution\\s+of:\\s*'([^']+)'"
+    extract:
+      tool: Bash
+      subTool: $1
+      shortCmd: 'Bash($1)'
+
+  # "Apply this change?" — implicit Edit
+  - name: apply-change
+    match: 'Apply\s+this\s+change'
+    extract:
+      tool: Edit
+      subTool: ''
+      shortCmd: 'Edit(apply change)'
+
+  # Direct format: "Tool(args)"
+  - name: tool-parens
+    match: '\b(Write|Edit|Bash|Read|Glob|Grep|NotebookEdit|Agent|MultiEdit)\s*\(([^)]{0,200})'
+    extract:
+      tool: $1
+      subTool: $first_word_of_2
+      shortCmd: '$1($2)'
+
+  # Raw commands without "Bash" prefix: sed, git, rm, etc.
+  - name: raw-command
+    match: '(?:^|\n)\s*(sed|git|rm|mv|cp|chmod|chown|docker|npm|npx|curl|wget)\s+(.{1,120})'
+    extract:
+      tool: Bash
+      subTool: $1
+      shortCmd: 'Bash($1 $2)'
+
+  # Fallback — no match
+  - name: fallback
+    match: '[\s\S]'
+    extract:
+      tool: ''
+      subTool: ''
+      shortCmd: $truncate_120
